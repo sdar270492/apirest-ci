@@ -6,6 +6,10 @@ class Clientes extends Controller
 {
     public function index() 
     {
-        echo 'Hola Clientes!';
+        $json = array(
+            "detalle" => "No encontrado"
+        );
+
+        return json_encode($json, true);
     }
 }
