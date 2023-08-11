@@ -75,6 +75,7 @@ $routes->setAutoRoute(true);
 $routes->get('/', 'Clientes::index');
 // $routes->get('/', 'Registro::index');
 $routes->resource('registro');
+$routes->resource('cursos');
 
 /**
  * --------------------------------------------------------------------
