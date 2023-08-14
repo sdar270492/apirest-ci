@@ -17,15 +17,42 @@ class Cursos extends Controller
         $clientesModel = new ClientesModel();
         $clientes = $clientesModel->findAll();
 
+        $db = \Config\Database::connect();
+
         foreach ($clientes as $key => $value) {
 
             if (array_key_exists('Authorization', $headers) && !empty($headers['Authorization'])) {
                 // echo '<pre>';print_r($request->getHeader('Authorization'));echo '</pre>';
                 // return;
                 if ($request->getHeader('Authorization') == 'Authorization: Basic '.base64_encode($value["id_cliente"].":".$value["llave_secreta"])) {
-                    $cursosModel = new CursosModel();
-                    $cursos = $cursosModel->findAll();
-                    // $json = array();
+                    // $cursosModel = new CursosModel();
+                    // $cursos = $cursosModel->findAll();
+
+                    if (isset($_GET["page"])) {
+
+                        $cantidad = 10;
+                        $desde = ($_GET["page"]-1)*$cantidad;
+
+                        $query = $db->query('CALL SP_CONSULTA_CURSOS_POR_CLIENTES_BY_PAGE('.$cantidad.','.$desde.')');
+                        // $query = $db->query('
+                        //     SELECT cursos.id, titulo, descripcion, instructor, imagen, precio, id_creador, primer_nombre, primer_apellido 
+                        //     FROM cursos 
+                        //     INNER JOIN clientes 
+                        //     ON cursos.id_creador = clientes.id 
+                        //     LIMIT '.$cantidad.' OFFSET '.$desde.'
+                        // ');
+                    } else {
+                        $query = $db->query('CALL SP_CONSULTA_CURSOS_POR_CLIENTES()');
+                        // $query = $db->query('
+                        //     SELECT cursos.id, titulo, descripcion, instructor, imagen, precio, id_creador, primer_nombre, primer_apellido 
+                        //     FROM cursos 
+                        //     INNER JOIN clientes 
+                        //     ON cursos.id_creador = clientes.id
+                        // ');
+                    }
+
+                    
+                    $cursos = $query->getResult();
 
                     if (!empty($cursos)) {
                         $json = array(
@@ -325,11 +352,76 @@ class Cursos extends Controller
             } else {
                 $json = array(
                     "status" => 404,
-                    "detalle" => "No està autorizado para guardar los registros"
+                    "detalle" => "No està autorizado para editar los registros"
                 );
             }
         }       
 
         return json_encode($json, true);  
     }
+
+    /*=================================================
+    Borrar un curso
+    =================================================*/
+    public function delete($id) {
+
+        $request = \Config\Services::request();
+        $headers = $request->getHeaders();
+
+        $clientesModel = new ClientesModel();
+        $clientes = $clientesModel->findAll();
+
+        foreach ($clientes as $key => $value) {
+
+            if (array_key_exists('Authorization', $headers) && !empty($headers['Authorization'])) {
+                if ($request->getHeader('Authorization') == 'Authorization: Basic '.base64_encode($value["id_cliente"].":".$value["llave_secreta"])) {
+                    $cursosModel = new CursosModel();
+                    $validar = $cursosModel->find($id);
+                    // echo '<pre>';print_r($validar);echo '</pre>';
+                    // return;
+                    if (!empty($validar)) {
+                        if ($value["id"] == $validar["id_creador"]) {
+                            // $cursosModel = new CursosModel();
+                            $cursosModel->delete($id);
+                                            
+                            $json = array(
+                                "status" => 200,
+                                "detalle" => "Se ha borrado su curso con éxito",
+                            );
+                    
+                            return json_encode($json, true);
+                        } else {
+                            $json = array(
+                                "status" => 404,
+                                "detalle" => "No está autorizado para eliminar este curso"
+                            );
+                        
+                            return json_encode($json, true);
+                        }
+                    } else {
+                        $json = array(
+                            "status" => 404,
+                            "message" => "El curso no existe"
+                        );
+                    }
+
+                } else {
+                    $json = array(
+                        "status" => 404,
+                        "detalle" => "El token es inválido"
+                    );
+                }
+
+            } else {
+                $json = array(
+                    "status" => 404,
+                    "detalle" => "No està autorizado para eliminar los registros"
+                );
+            }
+        }        
+        
+
+        return json_encode($json, true);
+    }
+
 }
